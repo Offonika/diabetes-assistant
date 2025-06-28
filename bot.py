@@ -29,7 +29,7 @@ for logger_name in ("httpcore", "httpx", "telegram", "telegram.ext"):
 
 
 logging.info("=== Bot started ===")
-print("Логгер настроен, бот запускается")
+logger.info("Логгер настроен, бот запускается")
 from datetime import datetime, timezone   # ← добавили timezone
 
 from gpt_command_parser import parse_command
