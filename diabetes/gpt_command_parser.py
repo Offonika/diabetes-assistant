@@ -3,8 +3,10 @@ from openai import OpenAI
 from diabetes.config import OPENAI_API_KEY, OPENAI_PROXY
 
 # 1️⃣ СРАЗУ ставим переменные окружения — до создания клиента!
-os.environ["HTTP_PROXY"]  = OPENAI_PROXY
-os.environ["HTTPS_PROXY"] = OPENAI_PROXY
+# Прокси активируется только если OPENAI_PROXY задан
+if OPENAI_PROXY:
+    os.environ["HTTP_PROXY"] = OPENAI_PROXY
+    os.environ["HTTPS_PROXY"] = OPENAI_PROXY
 
 # 2️⃣ Создаём обычный клиент OpenAI — без extra‑аргументов,
 #    он возьмёт прокси из env автоматически.
