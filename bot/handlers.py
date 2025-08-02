@@ -293,17 +293,21 @@ async def doc_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
-    session = SessionLocal()
     user_id = update.effective_user.id
-    user = session.get(User, user_id)
-
-    if not user:
-        thread_id = create_thread()
-        user = User(telegram_id=user_id, thread_id=thread_id)
-        session.add(user)
-        session.commit()
-
-    session.close()
+    try:
+        with SessionLocal() as session:
+            try:
+                user = session.get(User, user_id)
+                if not user:
+                    thread_id = create_thread()
+                    user = User(telegram_id=user_id, thread_id=thread_id)
+                    session.add(user)
+                    session.commit()
+            except Exception:
+                session.rollback()
+                raise
+    except Exception:
+        logger.exception("Failed to initialize user in start")
 
     await update.message.reply_text(
         "👋 <b>Привет, рад снова тебя видеть!</b>\n"
