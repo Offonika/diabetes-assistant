@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 
+from openai import OpenAIError
 from telegram import Update
 from telegram.ext import (
     CommandHandler, MessageHandler, CallbackQueryHandler,
@@ -842,12 +843,21 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, demo
             "⚠️ Ошибка при обработке файла изображения. Попробуйте ещё раз."
         )
         return ConversationHandler.END
-    except Exception as e:
-        logging.exception("[PHOTO] Vision failed: %s", e)
+    except OpenAIError as e:
+        logging.exception("[PHOTO] Vision API error: %s", e)
+        await message.reply_text(
+            "⚠️ Vision не смог обработать фото. Попробуйте ещё раз."
+        )
+        return ConversationHandler.END
+    except ValueError as e:
+        logging.exception("[PHOTO] Parsing error: %s", e)
         await message.reply_text(
             "⚠️ Не удалось распознать фото. Попробуйте ещё раз."
         )
         return ConversationHandler.END
+    except Exception as e:
+        logging.exception("[PHOTO] Unexpected error: %s", e)
+        raise
 
     finally:
         context.user_data.pop(WAITING_GPT_FLAG, None)
