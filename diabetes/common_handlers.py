@@ -174,6 +174,7 @@ def register_handlers(app: Application) -> None:
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("profile", profile_handlers.profile_command))
     app.add_handler(CommandHandler("report", reporting_handlers.report_request))
+    app.add_handler(CommandHandler("history", reporting_handlers.history_view))
     app.add_handler(dose_handlers.dose_conv)
     app.add_handler(dose_handlers.sugar_conv)
     app.add_handler(CommandHandler("sugar", dose_handlers.sugar_start))
