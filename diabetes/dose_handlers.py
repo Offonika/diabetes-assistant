@@ -25,6 +25,18 @@ from .reporting_handlers import send_report
 logger = logging.getLogger(__name__)
 
 
+def _cleanup_file(path: str | None) -> None:
+    """Remove a temporary image file if it exists."""
+    if not path:
+        return
+    try:
+        Path(path).unlink()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:  # pragma: no cover - log only
+        logger.warning("Failed to delete file %s: %s", path, exc)
+
+
 def _sanitize(text: str, max_len: int = 200) -> str:
     """Strip control chars and truncate for safe logging."""
     cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", str(text))
@@ -264,6 +276,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, demo
             logging.exception("[PHOTO] Failed to save photo: %s", exc)
             await message.reply_text("⚠️ Не удалось сохранить фото. Попробуйте ещё раз.")
             context.user_data.pop(WAITING_GPT_FLAG, None)
+            _cleanup_file(file_path)
             return ConversationHandler.END
 
     logging.info("[PHOTO] Saved to %s", file_path)
@@ -282,6 +295,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, demo
                         await message.reply_text(
                             "⚠️ Не удалось сохранить данные пользователя."
                         )
+                        _cleanup_file(file_path)
                         return ConversationHandler.END
             context.user_data["thread_id"] = thread_id
 
@@ -309,11 +323,13 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, demo
         if run.status not in ("completed", "failed", "cancelled", "expired"):
             logger.warning("[VISION][TIMEOUT] run.id=%s", run.id)
             await message.reply_text("⚠️ Время ожидания Vision истекло. Попробуйте позже.")
+            _cleanup_file(file_path)
             return ConversationHandler.END
 
         if run.status != "completed":
             logging.error("[VISION][RUN_FAILED] run.status=%s", run.status)
             await message.reply_text("⚠️ Vision не смог обработать фото.")
+            _cleanup_file(file_path)
             return ConversationHandler.END
 
         messages = _get_client().beta.threads.messages.list(thread_id=run.thread_id)
@@ -345,6 +361,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, demo
                 parse_mode="HTML",
                 reply_markup=menu_keyboard,
             )
+            _cleanup_file(file_path)
             return ConversationHandler.END
 
         context.user_data.update({"carbs": carbs_g, "xe": xe, "photo_path": file_path})
@@ -358,14 +375,17 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, demo
     except OSError as exc:
         logging.exception("[PHOTO] File processing error: %s", exc)
         await message.reply_text("⚠️ Ошибка при обработке файла изображения. Попробуйте ещё раз.")
+        _cleanup_file(file_path)
         return ConversationHandler.END
     except OpenAIError as exc:
         logging.exception("[PHOTO] Vision API error: %s", exc)
         await message.reply_text("⚠️ Vision не смог обработать фото. Попробуйте ещё раз.")
+        _cleanup_file(file_path)
         return ConversationHandler.END
     except ValueError as exc:
         logging.exception("[PHOTO] Parsing error: %s", exc)
         await message.reply_text("⚠️ Не удалось распознать фото. Попробуйте ещё раз.")
+        _cleanup_file(file_path)
         return ConversationHandler.END
     except Exception as exc:  # pragma: no cover - unexpected
         logging.exception("[PHOTO] Unexpected error: %s", exc)

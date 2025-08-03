@@ -7,6 +7,7 @@ including database transaction helpers and callback query routing.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from telegram import Update
 from telegram.ext import (
@@ -23,6 +24,18 @@ from diabetes.db import SessionLocal, Entry
 from diabetes.ui import menu_keyboard
 
 logger = logging.getLogger(__name__)
+
+
+def _cleanup_file(path: str | None) -> None:
+    """Remove an image file if it exists."""
+    if not path:
+        return
+    try:
+        Path(path).unlink()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:  # pragma: no cover - log only
+        logger.warning("Failed to delete file %s: %s", path, exc)
 
 
 def commit_session(session) -> bool:
@@ -59,12 +72,15 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if not entry_data:
             await query.edit_message_text("❗ Нет данных для сохранения.")
             return
+        photo_path = entry_data.get("photo_path")
         with SessionLocal() as session:
             entry = Entry(**entry_data)
             session.add(entry)
             if not commit_session(session):
                 await query.edit_message_text("⚠️ Не удалось сохранить запись.")
+                _cleanup_file(photo_path)
                 return
+        _cleanup_file(photo_path)
         await query.edit_message_text("✅ Запись сохранена в дневник!")
         return
 
@@ -83,7 +99,8 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     if data == "cancel_entry":
-        context.user_data.pop("pending_entry", None)
+        entry_data = context.user_data.pop("pending_entry", None)
+        _cleanup_file(entry_data.get("photo_path") if entry_data else None)
         await query.edit_message_text("❌ Запись отменена.")
         await query.message.reply_text("📋 Выберите действие:", reply_markup=menu_keyboard)
         return
