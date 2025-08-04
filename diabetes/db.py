@@ -3,7 +3,7 @@
 
 from sqlalchemy import (
     create_engine, Column, Integer, BigInteger, String,
-    Float, Text, TIMESTAMP, ForeignKey, func,
+    Float, Text, TIMESTAMP, ForeignKey, Boolean, func,
 )
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
@@ -32,6 +32,7 @@ class User(Base):
 
     telegram_id = Column(BigInteger, primary_key=True, index=True)
     thread_id = Column(String, nullable=False)
+    onboarding_complete = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 

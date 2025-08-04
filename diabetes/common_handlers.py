@@ -8,18 +8,19 @@ from __future__ import annotations
 
 import logging
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
+    PollAnswerHandler,
     filters,
 )
 from sqlalchemy.exc import SQLAlchemyError
 
-from diabetes.db import Entry, Profile, SessionLocal, User
+from diabetes.db import Entry, SessionLocal
 from diabetes.ui import menu_keyboard
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,13 @@ def commit_session(session) -> bool:
         session.rollback()
         logger.error("DB commit failed: %s", exc)
         return False
+
+
+from .onboarding_handlers import (  # noqa: E402
+    start_command,
+    onboarding_conv,
+    onboarding_poll_answer,
+)
 
 
 async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -124,79 +132,6 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.edit_message_text("Команда не распознана")
 
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Greet the user and ensure basic profile data exists.
-
-    Creates a :class:`~diabetes.db.User` with a fresh OpenAI thread if the
-    user is interacting with the bot for the first time.  Afterwards a greeting
-    along with the main menu keyboard is sent.
-    """
-    user_id = update.effective_user.id
-    first_name = update.effective_user.first_name or ""
-
-    with SessionLocal() as session:
-        user = session.get(User, user_id)
-        if not user:
-            from .gpt_client import create_thread
-
-            try:
-                thread_id = create_thread()
-            except Exception:  # pragma: no cover - network errors
-                logger.exception("Failed to create thread for user %s", user_id)
-                await update.message.reply_text(
-                    "⚠️ Не удалось инициализировать профиль. Попробуйте позже."
-                )
-                return
-            session.add(User(telegram_id=user_id, thread_id=thread_id))
-            if not commit_session(session):
-                await update.message.reply_text(
-                    "⚠️ Не удалось сохранить профиль пользователя."
-                )
-                return
-            context.user_data["thread_id"] = thread_id
-        else:
-            context.user_data.setdefault("thread_id", user.thread_id)
-
-    if first_name:
-        greeting = (
-            f"👋 Привет, {first_name}! Рада видеть тебя. "
-            "Надеюсь, у тебя сегодня всё отлично. Чем могу помочь?"
-        )
-    else:
-        greeting = (
-            "👋 Привет! Рада видеть тебя. "
-            "Надеюсь, у тебя сегодня всё отлично. Чем могу помочь?"
-        )
-    greeting += (
-        " Просто отправьте сообщение вроде "
-        "«съел 3 ХЕ, сахар 7.5, уколол 4 ед», и запись попадёт в дневник."
-    )
-    await update.message.reply_text(
-        f"{greeting}\n\n📋 Выберите действие:", reply_markup=menu_keyboard
-    )
-
-    with SessionLocal() as session:
-        profile = session.get(Profile, user_id)
-
-    if (
-        not profile
-        or profile.icr is None
-        or profile.cf is None
-        or profile.target_bg is None
-    ) and not context.user_data.get("profile_hint_sent"):
-        context.user_data["profile_hint_sent"] = True
-        keyboard = InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton("✏️ Заполнить профиль", callback_data="profile_edit")]
-            ]
-        )
-        await update.message.reply_text(
-            "Чтобы бот мог рассчитывать дозу, заполните профиль:\n"
-            "/profile <ИКХ> <КЧ> <целевой>",
-            reply_markup=keyboard,
-        )
-
-
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Display the main menu keyboard using ``menu_keyboard``."""
     await update.message.reply_text(
@@ -242,7 +177,7 @@ def register_handlers(app: Application) -> None:
     # (for example OpenAI client initialization).
     from . import dose_handlers, profile_handlers, reporting_handlers
 
-    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(onboarding_conv)
     app.add_handler(CommandHandler("menu", menu_command))
     app.add_handler(CommandHandler("report", reporting_handlers.report_request))
     app.add_handler(dose_handlers.dose_conv)
@@ -252,6 +187,7 @@ def register_handlers(app: Application) -> None:
     app.add_handler(CommandHandler("cancel", dose_handlers.dose_cancel))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("gpt", dose_handlers.chat_with_gpt))
+    app.add_handler(PollAnswerHandler(onboarding_poll_answer))
     app.add_handler(
         MessageHandler(filters.Regex("^📄 Мой профиль$"), profile_handlers.profile_view)
     )
