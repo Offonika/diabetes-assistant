@@ -230,7 +230,7 @@ async def freeform_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle freeform text commands for adding diary entries."""
     raw_text = update.message.text.strip()
     user_id = update.effective_user.id
-    logging.info("FREEFORM raw='%s'  user=%s", raw_text, user_id)
+    logging.info("FREEFORM raw='%s'  user=%s", _sanitize(raw_text), user_id)
 
     if context.user_data.get("awaiting_report_date"):
         text = update.message.text.strip().lower()
