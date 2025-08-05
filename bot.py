@@ -13,6 +13,21 @@ import sys
 logger = logging.getLogger(__name__)
 
 
+async def _set_commands(application: Application) -> None:
+    """Register default bot commands."""
+    commands = [
+        BotCommand("start", "Запустить бота"),
+        BotCommand("menu", "Главное меню"),
+        BotCommand("profile", "Мой профиль"),
+        BotCommand("report", "Отчёт"),
+        BotCommand("sugar", "Расчёт сахара"),
+        BotCommand("gpt", "Чат с GPT"),
+        BotCommand("reminders", "Список напоминаний"),
+        BotCommand("addreminder", "Добавить напоминание"),
+        BotCommand("delreminder", "Удалить напоминание"),
+        BotCommand("help", "Справка"),
+    ]
+    await application.bot.set_my_commands(commands)
 async def main() -> None:
     """Configure and run the bot."""
     logging.basicConfig(
@@ -35,23 +50,14 @@ async def main() -> None:
         sys.exit(1)
 
     application = Application.builder().token(BOT_TOKEN).build()
+    if hasattr(application, "post_init"):
+        application.post_init(_set_commands)
+    else:  # Fallback for simplified Application mocks in tests
+        await _set_commands(application)
     register_handlers(application)
 
-    commands = [
-        BotCommand("start", "Запустить бота"),
-        BotCommand("menu", "Главное меню"),
-        BotCommand("profile", "Мой профиль"),
-        BotCommand("report", "Отчёт"),
-        BotCommand("sugar", "Расчёт сахара"),
-        BotCommand("gpt", "Чат с GPT"),
-        BotCommand("reminders", "Список напоминаний"),
-        BotCommand("addreminder", "Добавить напоминание"),
-        BotCommand("delreminder", "Удалить напоминание"),
-        BotCommand("help", "Справка"),
-    ]
-    await application.bot.set_my_commands(commands)
-
-    await application.run_polling()
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, application.run_polling)
 
 
 if __name__ == "__main__":
