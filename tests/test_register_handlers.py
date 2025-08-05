@@ -110,7 +110,6 @@ def test_register_handlers_attaches_expected_handlers(monkeypatch):
     ]
     assert doc_handlers
 
-
     photo_prompt_handlers = [
         h
         for h in handlers
@@ -166,6 +165,13 @@ def test_register_handlers_attaches_expected_handlers(monkeypatch):
         if isinstance(h, MessageHandler) and h.callback is reporting_handlers.history_view
     ]
     assert history_handlers
+
+    history_cmd = [
+        h
+        for h in handlers
+        if isinstance(h, CommandHandler) and h.callback is reporting_handlers.history_view
+    ]
+    assert history_cmd and "history" in history_cmd[0].commands
 
     cb_handlers = [
         h
