@@ -16,9 +16,8 @@ from telegram.ext import (
 
 from diabetes.db import SessionLocal, Reminder, ReminderLog, User
 from .common_handlers import commit_session
- 
-MAX_REMINDERS = 5
-PRO_REMINDERS = 10
+
+PLAN_LIMITS = {"free": 5, "pro": 10}
 
 # Map reminder type codes to display names
 REMINDER_NAMES = {
@@ -34,6 +33,10 @@ REMINDER_ACTIONS = {
     "medicine": "Таблетки/лекарство",  # noqa: RUF001
     "xe_after": "Проверить ХЕ",  # noqa: RUF001
 }
+
+def _limit_for(user: User | None) -> int:
+    plan = getattr(user, "plan", "free")
+    return PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
 
 # Conversation states
 REMINDER_TYPE, REMINDER_VALUE, REMINDER_CONFIRM = range(3)
@@ -205,15 +208,11 @@ async def add_reminder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     with SessionLocal() as session:
         count = session.query(Reminder).filter_by(telegram_id=user_id).count()
         user = session.get(User, user_id)
-        limit = (
-            PRO_REMINDERS
-            if getattr(user, "plan", "free") == "pro"
-            else MAX_REMINDERS
-        )
+        limit = _limit_for(user)
         if count >= limit:
             await update.message.reply_text(
                 f"У вас уже {count} активных из {limit}. "
-                "Отключите одно или перейдите на Pro, чтобы поднять лимит до 10",
+                "Отключите одно или Апгрейд до Pro, чтобы поднять лимит до 10",
             )
             return
         session.add(reminder)
@@ -242,13 +241,11 @@ async def add_reminder_start(
     with SessionLocal() as session:
         count = session.query(Reminder).filter_by(telegram_id=user_id).count()
         user = session.get(User, user_id)
-    limit = (
-        PRO_REMINDERS if getattr(user, "plan", "free") == "pro" else MAX_REMINDERS
-    )
+    limit = _limit_for(user)
     if count >= limit:
         await message.reply_text(
             f"У вас уже {count} активных из {limit}. "
-            "Отключите одно или перейдите на Pro, чтобы поднять лимит до 10",
+            "Отключите одно или Апгрейд до Pro, чтобы поднять лимит до 10",
         )
         return ConversationHandler.END
     keyboard = InlineKeyboardMarkup(
@@ -463,15 +460,11 @@ async def add_reminder_confirm(
     with SessionLocal() as session:
         count = session.query(Reminder).filter_by(telegram_id=user_id).count()
         user = session.get(User, user_id)
-        limit = (
-            PRO_REMINDERS
-            if getattr(user, "plan", "free") == "pro"
-            else MAX_REMINDERS
-        )
+        limit = _limit_for(user)
         if count >= limit:
             await query.message.edit_text(
                 f"У вас уже {count} активных из {limit}. "
-                "Отключите одно или перейдите на Pro, чтобы поднять лимит до 10",
+                "Отключите одно или Апгрейд до Pro, чтобы поднять лимит до 10",
             )
             context.user_data.pop("rem_type", None)
             context.user_data.pop("pending_value", None)

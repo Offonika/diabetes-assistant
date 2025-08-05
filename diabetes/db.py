@@ -24,6 +24,7 @@ class User(Base):
     telegram_id = Column(BigInteger, primary_key=True, index=True)
     thread_id = Column(String, nullable=False)
     onboarding_complete = Column(Boolean, default=False)
+    plan = Column(String, default="free")
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 
