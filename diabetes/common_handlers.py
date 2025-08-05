@@ -270,7 +270,7 @@ def register_handlers(app: Application) -> None:
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("gpt", dose_handlers.chat_with_gpt))
     app.add_handler(CommandHandler("reminders", reminder_handlers.reminders_list))
-    app.add_handler(CommandHandler("addreminder", reminder_handlers.add_reminder))
+    app.add_handler(reminder_handlers.add_reminder_conv)
     app.add_handler(CommandHandler("delreminder", reminder_handlers.delete_reminder))
     app.add_handler(CommandHandler("alertstats", alert_handlers.alert_stats))
     app.add_handler(CommandHandler("hypoalert", security_handlers.hypo_alert_faq))

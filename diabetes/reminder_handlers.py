@@ -5,7 +5,14 @@ from __future__ import annotations
 from datetime import time, timedelta
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ContextTypes
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
 from diabetes.db import SessionLocal, Reminder, ReminderLog
 from .common_handlers import commit_session
@@ -66,85 +73,126 @@ async def reminders_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text("\n".join(lines))
 
 
-async def add_reminder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+# Conversation states
+ADDREM_TYPE, ADDREM_VALUE = range(2)
+
+
+def _is_time(val: str) -> bool:
+    parts = val.split(":")
+    if len(parts) != 2:
+        return False
+    try:
+        h, m = int(parts[0]), int(parts[1])
+    except ValueError:
+        return False
+    return 0 <= h < 24 and 0 <= m < 60
+
+
+async def add_reminder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    args = getattr(context, "args", [])
-    message = update.message or (update.callback_query.message if update.callback_query else None)
-    if not args or len(args) < 2:
-        if message:
-            await message.reply_text(
-                "Формат: /addreminder [id] <type> <time|interval>",
-            )
-        return
-    idx = 0
-    rtype: str
-    val: str
     with SessionLocal() as session:
-        if args[0].isdigit():
-            rid = int(args[0])
-            idx = 1
-            reminder = session.get(Reminder, rid)
-            if not reminder:
-                if message:
-                    await message.reply_text("Напоминание не найдено.")
-                return
-        else:
-            reminder = None
-        if len(args) <= idx + 1:
-            if message:
-                await message.reply_text(
-                    "Формат: /addreminder [id] <type> <time|interval>",
+        count = (
+            session.query(Reminder)
+            .filter_by(telegram_id=user_id)
+            .count()
+        )
+    if count >= MAX_REMINDERS:
+        await update.message.reply_text(
+            "Можно создать не более 5 напоминаний.",
+        )
+        return ConversationHandler.END
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("sugar", callback_data="remtype:sugar")],
+            [
+                InlineKeyboardButton(
+                    "long_insulin", callback_data="remtype:long_insulin"
                 )
-            return
-        rtype = args[idx]
-        val = args[idx + 1]
-        if reminder is None:
-            count = (
-                session.query(Reminder)
-                .filter_by(telegram_id=user_id)
-                .count()
-            )
-            if count >= MAX_REMINDERS:
-                if message:
-                    await message.reply_text(
-                        "Можно создать не более 5 напоминаний.",
-                    )
-                return
-            reminder = Reminder(telegram_id=user_id, type=rtype)
-            session.add(reminder)
-        reminder.type = rtype
-        reminder.time = None
-        reminder.interval_hours = None
-        reminder.minutes_after = None
-        if rtype == "sugar":
-            if ":" in val:
-                reminder.time = val
-            else:
-                try:
-                    reminder.interval_hours = int(val)
-                except ValueError:
-                    if message:
-                        await message.reply_text("Интервал должен быть числом.")
-                    return
-        elif rtype in {"long_insulin", "medicine"}:
+            ],
+            [InlineKeyboardButton("medicine", callback_data="remtype:medicine")],
+            [InlineKeyboardButton("xe_after", callback_data="remtype:xe_after")],
+        ]
+    )
+    await update.message.reply_text(
+        "Выберите тип напоминания:", reply_markup=keyboard
+    )
+    return ADDREM_TYPE
+
+
+async def add_reminder_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    _, rtype = query.data.split(":")
+    context.user_data["rtype"] = rtype
+    if rtype == "sugar":
+        prompt = "Введите время в формате HH:MM или интервал в часах."
+    elif rtype in {"long_insulin", "medicine"}:
+        prompt = "Введите время в формате HH:MM."
+    else:
+        prompt = "Введите интервал в минутах."
+    await query.message.reply_text(f"Тип: {rtype}. {prompt}")
+    return ADDREM_VALUE
+
+
+async def add_reminder_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    rtype = context.user_data.get("rtype")
+    if not rtype:
+        await update.message.reply_text("Тип напоминания не выбран.")
+        return ConversationHandler.END
+    val = update.message.text.strip()
+    reminder = Reminder(telegram_id=update.effective_user.id, type=rtype)
+    if rtype == "sugar":
+        if ":" in val:
+            if not _is_time(val):
+                await update.message.reply_text("Неверный формат времени.")
+                return ADDREM_VALUE
             reminder.time = val
-        elif rtype == "xe_after":
+        else:
             try:
-                reminder.minutes_after = int(val)
+                reminder.interval_hours = int(val)
             except ValueError:
-                if message:
-                    await message.reply_text("Значение должно быть числом.")
-                return
+                await update.message.reply_text("Интервал должен быть числом.")
+                return ADDREM_VALUE
+    elif rtype in {"long_insulin", "medicine"}:
+        if not _is_time(val):
+            await update.message.reply_text("Введите время в формате HH:MM.")
+            return ADDREM_VALUE
+        reminder.time = val
+    elif rtype == "xe_after":
+        try:
+            reminder.minutes_after = int(val)
+        except ValueError:
+            await update.message.reply_text("Значение должно быть числом.")
+            return ADDREM_VALUE
+    with SessionLocal() as session:
+        session.add(reminder)
         if not commit_session(session):
-            if message:
-                await message.reply_text("⚠️ Не удалось сохранить напоминание.")
-            return
-        rid = reminder.id
-    for job in context.job_queue.get_jobs_by_name(f"reminder_{rid}"):
-        job.schedule_removal()
+            await update.message.reply_text("⚠️ Не удалось сохранить напоминание.")
+            return ConversationHandler.END
+        session.refresh(reminder)
     schedule_reminder(reminder, context.job_queue)
-    if message:
-        await message.reply_text(f"Сохранено: {_describe(reminder)}")
+    await update.message.reply_text(
+        f"✅ Напоминание сохранено: {_describe(reminder)}"
+    )
+    return ConversationHandler.END
+
+
+async def add_reminder_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❌ Напоминание отменено.")
+    return ConversationHandler.END
+
+
+add_reminder_conv = ConversationHandler(
+    entry_points=[CommandHandler("addreminder", add_reminder)],
+    states={
+        ADDREM_TYPE: [CallbackQueryHandler(add_reminder_type, pattern="^remtype:")],
+        ADDREM_VALUE: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, add_reminder_value)
+        ],
+    },
+    fallbacks=[CommandHandler("cancel", add_reminder_cancel)],
+    per_message=False,
+)
 
 
 async def delete_reminder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

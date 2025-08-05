@@ -11,7 +11,8 @@ import diabetes.reminder_handlers as reminder_handlers
 
 
 class DummyMessage:
-    def __init__(self):
+    def __init__(self, text: str = ""):
+        self.text = text
         self.texts = []
 
     async def reply_text(self, text, **kwargs):
@@ -111,16 +112,17 @@ async def test_add_reminder_commit_failure(monkeypatch, caplog):
     schedule_mock = MagicMock()
     monkeypatch.setattr(reminder_handlers, "schedule_reminder", schedule_mock)
 
-    message = DummyMessage()
+    message = DummyMessage("23:00")
     update = SimpleNamespace(message=message, effective_user=SimpleNamespace(id=1))
     context = SimpleNamespace(
-        args=["sugar", "23:00"],
+        user_data={"rtype": "sugar"},
         job_queue=SimpleNamespace(get_jobs_by_name=lambda name: []),
     )
 
     with caplog.at_level(logging.ERROR):
-        await reminder_handlers.add_reminder(update, context)
+        result = await reminder_handlers.add_reminder_value(update, context)
 
+    assert result == reminder_handlers.ConversationHandler.END
     assert session.rollback.called
     assert "DB commit failed" in caplog.text
     assert message.texts == ["⚠️ Не удалось сохранить напоминание."]
