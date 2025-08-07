@@ -1,6 +1,7 @@
 """Minimal FastAPI application serving the timezone detector page."""
 from __future__ import annotations
 
+import asyncio
 import os
 import json
 from json import JSONDecodeError
@@ -15,19 +16,27 @@ BASE_DIR = Path(__file__).parent
 REMINDERS_FILE = BASE_DIR / "reminders.json"
 
 
-def _read_reminders() -> dict[int, dict]:
+async def _read_reminders() -> dict[int, dict]:
     """Read reminders from JSON file."""
-    if REMINDERS_FILE.exists():
-        with REMINDERS_FILE.open("r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        return {int(k): v for k, v in data.items()}
-    return {}
+
+    def _read() -> dict[int, dict]:
+        if REMINDERS_FILE.exists():
+            with REMINDERS_FILE.open("r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            return {int(k): v for k, v in data.items()}
+        return {}
+
+    return await asyncio.to_thread(_read)
 
 
-def _write_reminders(data: dict[int, dict]) -> None:
+async def _write_reminders(data: dict[int, dict]) -> None:
     """Write reminders to JSON file."""
-    with REMINDERS_FILE.open("w", encoding="utf-8") as fh:
-        json.dump({int(k): v for k, v in data.items()}, fh)
+
+    def _write() -> None:
+        with REMINDERS_FILE.open("w", encoding="utf-8") as fh:
+            json.dump({int(k): v for k, v in data.items()}, fh)
+
+    await asyncio.to_thread(_write)
 
 
 class ProfileSchema(BaseModel):
@@ -84,7 +93,7 @@ async def reminder_form() -> FileResponse:  # pragma: no cover - trivial
 @app.get("/reminders")
 async def reminders_get(id: int | None = None) -> dict | list[dict]:  # pragma: no cover - simple
     """Return stored reminders from JSON file."""
-    store = _read_reminders()
+    store = await _read_reminders()
     if id is None:
         return list(store.values())
     return store.get(id, {})
@@ -102,16 +111,18 @@ async def reminders_post(request: Request) -> dict:  # pragma: no cover - simple
     except ValidationError as exc:  # pragma: no cover - validation
         raise HTTPException(status_code=400, detail="invalid data") from exc
 
-    store = _read_reminders()
+    store = await _read_reminders()
     rid = reminder.id if reminder.id is not None else max(store.keys(), default=0) + 1
     if rid < 0:
         raise HTTPException(status_code=400, detail="id must be non-negative")
+
     store[rid] = {
         "id": rid,
         "type": reminder.type,
         **reminder.model_dump(exclude={"id", "type"}, exclude_none=True),
     }
     _write_reminders(store)
+
     return {"status": "ok", "id": rid}
 
 
