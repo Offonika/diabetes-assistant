@@ -54,6 +54,16 @@ class Entry(Base):
     gpt_summary  = Column(Text)
 
 
+class Reminder(Base):
+    __tablename__ = "reminders"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    telegram_id = Column(BigInteger, ForeignKey("users.telegram_id"))
+    time        = Column(TIMESTAMP, nullable=False)
+    message     = Column(Text, nullable=False)
+    created_at  = Column(TIMESTAMP, server_default=func.now())
+
+
 # ────────────────────── инициализация ────────────────────────
 def init_db() -> None:
     """Создать таблицы, если их ещё нет (для локального запуска)."""

@@ -4,6 +4,7 @@ import asyncio
 import time
 import os
 from datetime import datetime, timezone, timedelta, time as dtime
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 logger = logging.getLogger("bot")
 
@@ -22,7 +23,7 @@ from .utils import extract_nutrition_info
 
 from report import send_report
 
-from db_access import save_profile, get_profile, add_entry
+from db_access import save_profile, get_profile, add_entry, add_reminder, delete_reminder
 PROFILE_ICR, PROFILE_CF, PROFILE_TARGET         = range(0, 3)    # 0,1,2
 DOSE_METHOD, DOSE_XE, DOSE_SUGAR, DOSE_CARBS    = range(3, 7)    # 3,4,5,6
 PHOTO_SUGAR                                     = 7              # после DOSE_CARBS
@@ -30,6 +31,14 @@ SUGAR_VAL                                       = 8              # конвер�
 # (подтверждение/переопределение дозы при желании  можно сделать 9 и 10)
 
 WAITING_GPT_FLAG = "waiting_gpt_response"
+
+scheduler = AsyncIOScheduler()
+scheduler.start()
+
+
+async def reminder_job(bot, chat_id: int, text: str, reminder_id: int):
+    await bot.send_message(chat_id=chat_id, text=text)
+    delete_reminder(reminder_id)
 
 # Клавиатура для выбора метода ввода
 dose_keyboard = ReplyKeyboardMarkup(
@@ -162,8 +171,44 @@ async def freeform_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parsed = await parse_command(raw_text)
     logger.info(f"FREEFORM parsed={parsed}")
 
-    # если парсер не увидел понятной команды — передаём в GPT‑чат
-    if not parsed or parsed.get("action") != "add_entry":
+    if not parsed:
+        await chat_with_gpt(update, context)
+        return
+
+    if parsed.get("action") == "set_reminder":
+        entry_date = parsed.get("entry_date")
+        time_str = parsed.get("time")
+        if entry_date:
+            try:
+                remind_dt = datetime.fromisoformat(entry_date)
+            except ValueError:
+                remind_dt = datetime.utcnow() + timedelta(minutes=1)
+        elif time_str:
+            try:
+                hh, mm = map(int, time_str.split(":"))
+                today = datetime.now()
+                remind_dt = datetime.combine(today.date(), dtime(hh, mm))
+                if remind_dt <= today:
+                    remind_dt += timedelta(days=1)
+            except Exception:
+                remind_dt = datetime.utcnow() + timedelta(minutes=1)
+        else:
+            remind_dt = datetime.utcnow() + timedelta(minutes=1)
+
+        text = parsed.get("message") or "Напоминание"
+        reminder_id = add_reminder(update.effective_user.id, remind_dt, text)
+        scheduler.add_job(
+            reminder_job,
+            "date",
+            run_date=remind_dt,
+            args=(context.bot, update.effective_chat.id, text, reminder_id),
+        )
+        await update.message.reply_text(
+            f"⏰ Напоминание на {remind_dt.strftime('%d.%m %H:%M')} установлено"
+        )
+        return
+
+    if parsed.get("action") != "add_entry":
         await chat_with_gpt(update, context)
         return
 

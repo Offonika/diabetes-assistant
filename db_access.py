@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from typing import List
-from db import SessionLocal, Profile, Entry
+from db import SessionLocal, Profile, Entry, Reminder
 
 
 def save_profile(user_id: int, icr: float, cf: float, target: float) -> None:
@@ -42,3 +42,34 @@ def get_entries_since(user_id: int, date_from: datetime) -> List[Entry]:
             .order_by(Entry.event_time)
             .all()
         )
+
+
+def add_reminder(user_id: int, remind_at: datetime, message: str) -> int:
+    with SessionLocal() as session:
+        reminder = Reminder(
+            telegram_id=user_id,
+            time=remind_at,
+            message=message,
+        )
+        session.add(reminder)
+        session.commit()
+        session.refresh(reminder)
+        return reminder.id
+
+
+def get_user_reminders(user_id: int) -> List[Reminder]:
+    with SessionLocal() as session:
+        return (
+            session.query(Reminder)
+            .filter(Reminder.telegram_id == user_id)
+            .order_by(Reminder.time)
+            .all()
+        )
+
+
+def delete_reminder(reminder_id: int) -> None:
+    with SessionLocal() as session:
+        reminder = session.get(Reminder, reminder_id)
+        if reminder:
+            session.delete(reminder)
+            session.commit()

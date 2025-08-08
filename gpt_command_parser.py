@@ -25,6 +25,7 @@ SYSTEM_PROMPT = (
     '"update_profile" | "set_reminder" | "get_stats" | "get_day_summary",\n'
     '  "entry_date": "YYYY-MM-DDTHH:MM:SS",      // ⇦ указывай ТОЛЬКО если есть полная дата\n'
     '  "time": "HH:MM",                          // ⇦ если в сообщении было лишь время\n'
+    '  "message": "...",                         // ⇦ текст напоминания для set_reminder\n'
     '  "fields": { ... }                         // xe, carbs_g, dose, sugar_before и пр.\n'
     "}\n\n"
 
@@ -43,6 +44,8 @@ SYSTEM_PROMPT = (
     "Пример 2 (полная дата):\n"
     "  {\"action\":\"add_entry\",\"entry_date\":\"2025-05-04T20:00:00\","
     "\"fields\":{\"carbs_g\":60,\"dose\":6}}\n"
+    "Пример 3 (напоминание):\n"
+    "  {\"action\":\"set_reminder\",\"time\":\"09:00\",\"message\":\"проверить сахар\"}\n"
 )
 
 
