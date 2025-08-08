@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import json
+import logging
 from json import JSONDecodeError
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -15,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).parent
 REMINDERS_FILE = BASE_DIR / "reminders.json"
 TIMEZONE_FILE = BASE_DIR / "timezone.txt"
@@ -55,8 +57,17 @@ async def _read_reminders() -> dict[int, dict]:
 
     def _read() -> dict[int, dict]:
         if REMINDERS_FILE.exists():
-            with REMINDERS_FILE.open("r", encoding="utf-8") as fh:
-                data = json.load(fh)
+            try:
+                with REMINDERS_FILE.open("r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+            except JSONDecodeError:
+                logger.warning("Failed to decode %s; backing up and resetting", REMINDERS_FILE)
+                backup = REMINDERS_FILE.with_suffix(REMINDERS_FILE.suffix + ".bak")
+                try:
+                    REMINDERS_FILE.replace(backup)
+                except OSError:
+                    REMINDERS_FILE.unlink(missing_ok=True)
+                return {}
             return {int(k): v for k, v in data.items()}
         return {}
 
