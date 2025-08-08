@@ -22,7 +22,8 @@ from .utils import extract_nutrition_info
 
 from report import send_report
 
-from db_access import save_profile, get_profile, add_entry
+from db_access import save_profile, get_profile, add_entry, add_reminder
+from reminder_scheduler import schedule_reminder
 PROFILE_ICR, PROFILE_CF, PROFILE_TARGET         = range(0, 3)    # 0,1,2
 DOSE_METHOD, DOSE_XE, DOSE_SUGAR, DOSE_CARBS    = range(3, 7)    # 3,4,5,6
 PHOTO_SUGAR                                     = 7              # после DOSE_CARBS
@@ -162,8 +163,30 @@ async def freeform_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parsed = await parse_command(raw_text)
     logger.info(f"FREEFORM parsed={parsed}")
 
+    action = parsed.get("action") if parsed else None
+    if action == "set_reminder":
+        time_str = parsed.get("time")
+        message  = parsed.get("message") or (parsed.get("fields") or {}).get("message")
+        if time_str:
+            try:
+                hh, mm = map(int, time_str.split(":"))
+                now = datetime.now()
+                run_time = datetime.combine(now.date(), dtime(hh, mm))
+                if run_time <= now:
+                    run_time += timedelta(days=1)
+            except Exception:
+                run_time = datetime.now() + timedelta(minutes=1)
+        else:
+            run_time = datetime.now() + timedelta(minutes=1)
+        add_reminder(update.effective_user.id, run_time, message)
+        schedule_reminder(context.bot, update.effective_user.id, run_time, message)
+        await update.message.reply_text(
+            f"⏰ Напоминание на {run_time.strftime('%H:%M')} сохранено"
+        )
+        return
+
     # если парсер не увидел понятной команды — передаём в GPT‑чат
-    if not parsed or parsed.get("action") != "add_entry":
+    if not parsed or action != "add_entry":
         await chat_with_gpt(update, context)
         return
 
