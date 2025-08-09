@@ -57,18 +57,6 @@ async def _write_timezone(value: str) -> None:
         logger.exception("failed to write timezone")
         raise HTTPException(status_code=500, detail="storage error")
 
-
-async def _write_reminders(store: dict[int, dict]) -> None:
-    def _write() -> None:
-        with REMINDERS_FILE.open("w", encoding="utf-8") as fh:
-            json.dump(store, fh, ensure_ascii=False)
-
-    try:
-        await asyncio.to_thread(_write)
-    except OSError:
-        logger.exception("failed to write reminders")
-        raise HTTPException(status_code=500, detail="storage error")
-
 async def _read_reminders() -> dict[int, dict]:
     def _read() -> dict[int, dict]:
         if not REMINDERS_FILE.exists():
@@ -102,6 +90,18 @@ async def _read_reminders() -> dict[int, dict]:
                 logger.exception("failed to reset reminders file")
             return {}
     return await asyncio.to_thread(_read)
+
+
+async def _write_reminders(store: dict[int, dict]) -> None:
+    def _write() -> None:
+        with REMINDERS_FILE.open("w", encoding="utf-8") as fh:
+            json.dump(store, fh, ensure_ascii=False)
+
+    try:
+        await asyncio.to_thread(_write)
+    except OSError as exc:
+        logger.exception("failed to write reminders")
+        raise HTTPException(status_code=500, detail="storage error") from exc
 
 @app.post("/api/timezone")
 async def timezone_post(request: Request) -> dict:
