@@ -88,7 +88,10 @@
 }
 
 .segmented__item label {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
   padding: 0.5rem 1rem;
   text-align: center;
   cursor: pointer;
@@ -97,7 +100,8 @@
   user-select: none;
 }
 
-.segmented__item input:checked + label {
+.segmented__item input:checked + label,
+.segmented__item label[aria-checked="true"] {
   background: var(--button-color);
   color: var(--button-text-color);
 }

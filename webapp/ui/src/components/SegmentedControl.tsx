@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 
 export interface SegmentedItem {
   value: string;
@@ -13,10 +13,11 @@ interface SegmentedControlProps {
 }
 
 export const SegmentedControl = ({ value, onChange, items }: SegmentedControlProps) => {
-  const itemRefs = useRef<HTMLButtonElement[]>([]);
+  const groupId = useId();
+  const itemRefs = useRef<HTMLLabelElement[]>([]);
 
   const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLButtonElement>,
+    e: React.KeyboardEvent<HTMLLabelElement>,
     index: number,
   ) => {
     let newIndex = index;
@@ -40,22 +41,35 @@ export const SegmentedControl = ({ value, onChange, items }: SegmentedControlPro
 
   return (
     <div className="segmented" role="radiogroup">
-      {items.map((item, index) => (
-        <button
-          key={item.value}
-          ref={(el) => (itemRefs.current[index] = el!)}
-          type="button"
-          className="segmented__item"
-          role="radio"
-          aria-checked={value === item.value}
-          tabIndex={value === item.value ? 0 : -1}
-          onClick={() => onChange(item.value)}
-          onKeyDown={(e) => handleKeyDown(e, index)}
-        >
-          {item.icon && <span className="segmented__icon">{item.icon}</span>}
-          {item.label && <span className="segmented__label">{item.label}</span>}
-        </button>
-      ))}
+      {items.map((item, index) => {
+        const id = `${groupId}-${index}`;
+        return (
+          <div className="segmented__item" key={item.value}>
+            <input
+              id={id}
+              type="radio"
+              name={groupId}
+              checked={value === item.value}
+              onChange={() => onChange(item.value)}
+            />
+            <label
+              ref={(el) => (itemRefs.current[index] = el!)}
+              htmlFor={id}
+              role="radio"
+              aria-checked={value === item.value}
+              tabIndex={value === item.value ? 0 : -1}
+              onKeyDown={(e) => handleKeyDown(e, index)}
+            >
+              {item.icon && (
+                <span className="segmented__icon">{item.icon}</span>
+              )}
+              {item.label && (
+                <span className="segmented__label">{item.label}</span>
+              )}
+            </label>
+          </div>
+        );
+      })}
     </div>
   );
 };
