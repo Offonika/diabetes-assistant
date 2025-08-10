@@ -80,6 +80,9 @@ EXPLICIT_SUGAR_RE = re.compile(rf"\b{SUGAR_WORD_RE.pattern}\b")
 EXPLICIT_XE_RE = re.compile(rf"\b{XE_LABEL_RE.pattern}\b")
 EXPLICIT_DOSE_RE = re.compile(rf"\b{DOSE_WORD_RE.pattern}\b")
 
+# Helpers for first-line detection in ``extract_nutrition_info``.
+FIRST_LINE_INFO_RE = re.compile(r"\d|углевод|[хx][еe]", re.IGNORECASE)
+
 
 def _safe_float(value: str) -> float | None:
     """Возвращает число из строки.
@@ -179,7 +182,7 @@ def extract_nutrition_info(text: str) -> tuple[float | None, float | None]:
     # Если первая строка не содержит цифр или ключевых слов,
     # считаем её названием блюда и игнорируем
     lines = text.splitlines()
-    if len(lines) > 1 and not re.search(r"\d|углевод|[хx][еe]", lines[0], re.IGNORECASE):
+    if len(lines) > 1 and not FIRST_LINE_INFO_RE.search(lines[0]):
         text = "\n".join(lines[1:])
 
     carbs = xe = None
