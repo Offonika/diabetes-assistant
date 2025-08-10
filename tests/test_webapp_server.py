@@ -52,26 +52,26 @@ def test_spa_routes_fall_back_to_index(path: str) -> None:
 
 def test_reminders_post_accepts_str_and_int_ids() -> None:
     """Posting reminders with string or int IDs stores numeric IDs."""
-    response = client.post("/reminders", json={"id": 5, "text": "foo"})
+    response = client.post("/api/reminders", json={"id": 5, "text": "foo"})
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "id": 5}
-    assert client.get("/reminders?id=5").json()["id"] == 5
+    assert client.get("/api/reminders?id=5").json()["id"] == 5
 
-    response = client.post("/reminders", json={"id": "6", "text": "bar"})
+    response = client.post("/api/reminders", json={"id": "6", "text": "bar"})
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "id": 6}
-    assert client.get("/reminders?id=6").json()["id"] == 6
+    assert client.get("/api/reminders?id=6").json()["id"] == 6
 
     # Auto-generate ID when not provided
-    response = client.post("/reminders", json={"text": "baz"})
+    response = client.post("/api/reminders", json={"text": "baz"})
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "id": 7}
 
 
 def test_profile_rejects_invalid_json() -> None:
-    """Posting malformed JSON to /profile returns an error."""
+    """Posting malformed JSON to /api/profile returns an error."""
     response = client.post(
-        "/profile",
+        "/api/profile",
         content=b"{bad",
         headers={"Content-Type": "application/json"},
     )
@@ -82,21 +82,21 @@ def test_profile_rejects_invalid_json() -> None:
 @pytest.mark.parametrize("rid", [-1, "-1"])
 def test_reminders_post_rejects_negative_id(rid: int | str) -> None:
     """Posting a negative ID should return a validation error."""
-    response = client.post("/reminders", json={"id": rid, "text": "oops"})
+    response = client.post("/api/reminders", json={"id": rid, "text": "oops"})
     assert response.status_code == 400
-    assert client.get("/reminders").json() == []
+    assert client.get("/api/reminders").json() == []
 
 
 def test_reminders_post_rejects_invalid_json() -> None:
-    """Malformed JSON for /reminders should return an error and keep state empty."""
+    """Malformed JSON for /api/reminders should return an error and keep state empty."""
     response = client.post(
-        "/reminders",
+        "/api/reminders",
         content=b"{bad",
         headers={"Content-Type": "application/json"},
     )
     assert response.status_code == 400
     assert response.json() == {"detail": "invalid JSON format"}
-    assert client.get("/reminders").json() == []
+    assert client.get("/api/reminders").json() == []
 
 
 def test_reminders_post_storage_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -104,7 +104,7 @@ def test_reminders_post_storage_error(monkeypatch: pytest.MonkeyPatch) -> None:
         raise OSError("disk full")
 
     monkeypatch.setattr(server.json, "dump", raise_oserror)
-    response = client.post("/reminders", json={"text": "foo"})
+    response = client.post("/api/reminders", json={"text": "foo"})
     assert response.status_code == 500
     assert response.json() == {"detail": "storage error"}
 
@@ -121,7 +121,7 @@ def test_reminders_post_storage_error_on_read(
         return original_open(self, *args, **kwargs)
 
     monkeypatch.setattr(Path, "open", raise_oserror)
-    response = client.post("/reminders", json={"text": "foo"})
+    response = client.post("/api/reminders", json={"text": "foo"})
     assert response.status_code == 500
     assert response.json() == {"detail": "storage error"}
 
@@ -135,7 +135,7 @@ def test_reminders_get_storage_error(monkeypatch: pytest.MonkeyPatch) -> None:
     server.REMINDERS_FILE.write_text("{}", encoding="utf-8")
     original_open = Path.open
     monkeypatch.setattr(Path, "open", raise_oserror)
-    response = client.get("/reminders")
+    response = client.get("/api/reminders")
     assert response.status_code == 500
     assert response.json() == {"detail": "storage error"}
 
@@ -152,7 +152,7 @@ def test_reminders_get_storage_error_on_reset(
         return original_write_text(self, *args, **kwargs)
 
     monkeypatch.setattr(Path, "write_text", raise_oserror)
-    response = client.get("/reminders")
+    response = client.get("/api/reminders")
     assert response.status_code == 500
     assert response.json() == {"detail": "storage error"}
 
@@ -162,7 +162,7 @@ def test_reminders_get_handles_invalid_json(caplog: pytest.LogCaptureFixture) ->
     server.REMINDERS_FILE.write_text("{bad", encoding="utf-8")
 
     with caplog.at_level(logging.WARNING):
-        assert client.get("/reminders").json() == []
+        assert client.get("/api/reminders").json() == []
 
     assert server.REMINDERS_FILE.read_text(encoding="utf-8") == "{}"
     assert "invalid reminders JSON" in caplog.text
@@ -173,7 +173,7 @@ def test_reminders_get_handles_non_numeric_keys(caplog: pytest.LogCaptureFixture
     server.REMINDERS_FILE.write_text('{"foo": {"text": "bar"}}', encoding="utf-8")
 
     with caplog.at_level(logging.WARNING):
-        assert client.get("/reminders").json() == []
+        assert client.get("/api/reminders").json() == []
 
     assert server.REMINDERS_FILE.read_text(encoding="utf-8") == "{}"
     assert "non-numeric reminder key" in caplog.text
