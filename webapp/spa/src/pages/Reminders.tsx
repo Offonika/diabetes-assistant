@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Clock, Edit2, Trash2, Bell } from 'lucide-react';
 import { MedicalHeader } from '@/components/MedicalHeader';
@@ -87,10 +87,11 @@ const Reminders = () => {
     });
   };
 
-  const handleSaveReminder = async () => {
+  const handleSaveReminder = async (e: FormEvent) => {
+    e.preventDefault();
     if (newReminder.title && newReminder.time) {
       try {
-        const res = await fetch('/reminders', {
+        const res = await fetch('/api/reminders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -239,11 +240,14 @@ const Reminders = () => {
 
         {/* Форма создания/редактирования */}
         {showAddForm && (
-          <div className="medical-card animate-scale-in">
+          <form
+            className="medical-card animate-scale-in"
+            onSubmit={handleSaveReminder}
+          >
             <h3 className="font-semibold text-foreground mb-4">
               {newReminder.id ? 'Редактирование напоминания' : 'Новое напоминание'}
             </h3>
-            
+
             <div className="space-y-4">
               {/* Тип напоминания */}
               <div>
@@ -339,11 +343,7 @@ const Reminders = () => {
 
               {/* Кнопки */}
               <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleSaveReminder}
-                  className="medical-button flex-1"
-                >
+                <button type="submit" className="medical-button flex-1">
                   Сохранить
                 </button>
                 <button
@@ -358,7 +358,7 @@ const Reminders = () => {
                 </button>
               </div>
             </div>
-          </div>
+          </form>
         )}
 
         {/* Пустое состояние */}
