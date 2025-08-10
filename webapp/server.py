@@ -128,7 +128,7 @@ async def timezone_post(request: Request) -> dict:
     await _write_timezone(tz)
     return {"status": "ok"}
 
-@app.post("/profile")
+@app.post("/api/profile")
 async def save_profile(request: Request) -> dict:
     try:
         data = await request.json()
@@ -142,7 +142,7 @@ async def save_profile(request: Request) -> dict:
         raise HTTPException(status_code=400, detail="invalid data") from exc
     return {"status": "ok"}
 
-@app.get("/reminders")
+@app.get("/api/reminders")
 async def reminders_get(id: int | None = None) -> dict | list[dict]:
     async with reminders_lock:
         store = await _read_reminders()
@@ -150,7 +150,7 @@ async def reminders_get(id: int | None = None) -> dict | list[dict]:
         return list(store.values())
     return store.get(id, {})
 
-@app.post("/reminders")
+@app.post("/api/reminders")
 async def reminders_post(request: Request) -> dict:
     try:
         data = await request.json()
