@@ -220,10 +220,17 @@ async def onboarding_timezone(update: Update, context: ContextTypes.DEFAULT_TYPE
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Далее", callback_data="onb_next")]]
     )
-    with open("assets/demo.jpg", "rb") as photo:
-        await update.message.reply_photo(
-            photo=photo,
-            caption="2/3. Вот пример распознавания еды.",
+    try:
+        with open("assets/demo.jpg", "rb") as photo:
+            await update.message.reply_photo(
+                photo=photo,
+                caption="2/3. Вот пример распознавания еды.",
+                reply_markup=keyboard,
+            )
+    except OSError:
+        logger.exception("Failed to open demo photo")
+        await update.message.reply_text(
+            "2/3. Демо-фото недоступно.",
             reply_markup=keyboard,
         )
     return ONB_DEMO
