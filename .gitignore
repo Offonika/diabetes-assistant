@@ -26,7 +26,7 @@ node_modules/
 # Bot data
 .cursor/
 photos/
-webapp/reminders.json
+webapp_data/
 
 # Temporary/test files
 test123.txt

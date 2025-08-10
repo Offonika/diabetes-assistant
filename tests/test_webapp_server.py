@@ -33,6 +33,12 @@ def test_static_files_available() -> None:
     assert client.get("/telegram-init.js").status_code == 200
 
 
+def test_storage_files_inaccessible() -> None:
+    """Internal storage files should not be exposed over HTTP."""
+    assert client.get("/reminders.json").status_code == 404
+    assert client.get("/timezone.txt").status_code == 404
+
+
 @pytest.mark.parametrize("path", ["/ui/reminders", "/ui/unknown/path"])
 def test_spa_routes_fall_back_to_index(path: str) -> None:
     """SPA routes should return the main index.html file."""

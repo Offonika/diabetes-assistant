@@ -25,8 +25,11 @@ logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).parent.resolve()
 UI_DIR = (BASE_DIR / "ui").resolve()
 
-REMINDERS_FILE = BASE_DIR / "reminders.json"
-TIMEZONE_FILE = BASE_DIR / "timezone.txt"
+# store data files outside the served static directory
+STORAGE_DIR = (BASE_DIR.parent / "webapp_data").resolve()
+STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+REMINDERS_FILE = STORAGE_DIR / "reminders.json"
+TIMEZONE_FILE = STORAGE_DIR / "timezone.txt"
 reminders_lock = asyncio.Lock()
 
 
