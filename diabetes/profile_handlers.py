@@ -349,6 +349,12 @@ async def profile_security(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     user_id = update.effective_user.id
     action = query.data.split(":", 1)[1] if ":" in query.data else None
 
+    if action == "sos_contact":
+        from diabetes import sos_handlers
+
+        await sos_handlers.sos_contact_start(update.callback_query, context)
+        return
+
     with SessionLocal() as session:
         profile = session.get(Profile, user_id)
         user = session.get(User, user_id)
@@ -379,10 +385,6 @@ async def profile_security(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         elif action == "toggle_sos":
             profile.sos_alerts_enabled = not profile.sos_alerts_enabled
             changed = True
-        elif action == "sos_contact":
-            from diabetes import sos_handlers
-
-            await sos_handlers.sos_contact_start(update.callback_query, context)
         elif action == "add":
             if WEBAPP_URL:
                 button = InlineKeyboardButton(
