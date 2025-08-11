@@ -85,13 +85,17 @@ export const useTelegram = (
         "--tg-theme-button-text-color": p.button_text_color,
         "--tg-theme-secondary-bg-color": p.secondary_bg_color,
       };
-      Object.entries(map).forEach(([k, v]) => v && root.style.setProperty(k, v));
       if (ignoreScheme) {
+        // Remove Telegram theme overrides to fall back to default light colors
+        Object.keys(map).forEach((k) => root.style.removeProperty(k));
         root.classList.remove("dark");
+        root.style.colorScheme = "light";
         setScheme("light");
         src?.setBackgroundColor?.("#ffffff");
         src?.setHeaderColor?.("#ffffff");
       } else {
+        Object.entries(map).forEach(([k, v]) => v && root.style.setProperty(k, v));
+        root.style.colorScheme = "";
         root.classList.toggle("dark", src?.colorScheme === "dark");
         setScheme(src?.colorScheme ?? "light");
       }
