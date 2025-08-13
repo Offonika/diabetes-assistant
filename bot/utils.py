@@ -1,8 +1,12 @@
 import re
 
 
-def extract_nutrition_info(text: str):
-    """Parse carbs and XE values from Vision text."""
+def extract_nutrition_info(text: str) -> tuple[float | None, float | None]:
+    """Parse carbs and XE values from Vision text.
+
+    Returns a tuple ``(carbs, xe)`` where either value may be ``None`` if it
+    could not be determined from ``text``.
+    """
     carbs = xe = None
 
     m = re.search(r"углевод[^\d]*:\s*([\d.,]+)\s*г", text, re.IGNORECASE)
