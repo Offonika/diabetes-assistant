@@ -8,7 +8,7 @@ class DiagnoseRequest(BaseModel):
     diagnosis: str
 
 class DiagnoseResponse(BaseModel):
-    protocol: str | None
+    protocol: str
 
 @app.post("/v1/ai/diagnose", response_model=DiagnoseResponse)
 async def ai_diagnose(req: DiagnoseRequest) -> DiagnoseResponse:
