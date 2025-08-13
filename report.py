@@ -15,6 +15,10 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 DEFAULT_FONT = "Helvetica"
 DEFAULT_FONT_BOLD = "Helvetica-Bold"
 
+# Fallback font with Cyrillic support
+FALLBACK_FONT_PATH = "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
+FALLBACK_FONT_BOLD_PATH = "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"
+
 
 def _register_fonts() -> tuple[str, str]:
     """Register DejaVu fonts if available, else return defaults.
@@ -35,8 +39,20 @@ def _register_fonts() -> tuple[str, str]:
         pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", bold_path))
         return "DejaVuSans", "DejaVuSans-Bold"
 
+    fallback_regular = os.getenv("FALLBACK_FONT_PATH", FALLBACK_FONT_PATH)
+    fallback_bold = os.getenv("FALLBACK_FONT_BOLD_PATH", FALLBACK_FONT_BOLD_PATH)
+    if os.path.exists(fallback_regular) and os.path.exists(fallback_bold):
+        pdfmetrics.registerFont(TTFont("NotoSans", fallback_regular))
+        pdfmetrics.registerFont(TTFont("NotoSans-Bold", fallback_bold))
+        logging.warning(
+            "DejaVu fonts not found; using fallback fonts %s and %s",
+            "NotoSans",
+            "NotoSans-Bold",
+        )
+        return "NotoSans", "NotoSans-Bold"
+
     logging.warning(
-        "DejaVu fonts not found; using default fonts %s and %s",
+        "DejaVu and Noto fonts not found; using default fonts %s and %s",
         DEFAULT_FONT,
         DEFAULT_FONT_BOLD,
     )
