@@ -27,7 +27,12 @@ def save_profile(user_id: int, icr: float, cf: float, target: float) -> None:
         profile.icr = icr
         profile.cf = cf
         profile.target_bg = target
-        session.commit()
+        try:
+            session.commit()
+        except Exception:
+            logging.exception("Failed to save profile")
+            session.rollback()
+            raise
 
 
 def get_profile(user_id: int) -> Profile | None:
@@ -63,7 +68,12 @@ def add_reminder(user_id: int, time: datetime, message: str) -> Reminder:
     with SessionLocal() as session:
         reminder = Reminder(telegram_id=user_id, time=time, message=message)
         session.add(reminder)
-        session.commit()
+        try:
+            session.commit()
+        except Exception:
+            logging.exception("Failed to add reminder")
+            session.rollback()
+            raise
         session.refresh(reminder)
         return reminder
 
@@ -83,4 +93,9 @@ def delete_reminder(reminder_id: int) -> None:
         reminder = session.get(Reminder, reminder_id)
         if reminder:
             session.delete(reminder)
-            session.commit()
+            try:
+                session.commit()
+            except Exception:
+                logging.exception("Failed to delete reminder")
+                session.rollback()
+                raise
