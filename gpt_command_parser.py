@@ -73,7 +73,7 @@ async def parse_command(text: str) -> dict | None:
             logging.error("OpenAI completion returned no choices")
             return None
         content = choices[0].message.content.strip()
-        logging.info(f"GPT parse response: {content}")
+        logging.info("GPT parse response: %s", content)
         try:
             return json.loads(content)
         except json.JSONDecodeError:
