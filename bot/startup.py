@@ -11,6 +11,7 @@ def setup() -> logging.Logger:
             logging.FileHandler("bot.log"),
             logging.StreamHandler(),
         ],
+        force=True,
     )
     logger = logging.getLogger("bot")
 
