@@ -1,7 +1,21 @@
 import logging
 from datetime import datetime
 from typing import List
+from pydantic import BaseModel, ConfigDict
 from db import SessionLocal, Profile, Entry, Reminder
+
+
+class EntryData(BaseModel):
+    telegram_id: int
+    event_time: datetime
+    photo_path: str | None = None
+    carbs_g: float | None = None
+    xe: float | None = None
+    sugar_before: float | None = None
+    dose: float | None = None
+    gpt_summary: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
 
 
 def save_profile(user_id: int, icr: float, cf: float, target: float) -> None:
@@ -22,8 +36,9 @@ def get_profile(user_id: int) -> Profile | None:
 
 
 def add_entry(entry_data: dict) -> None:
+    data = EntryData.model_validate(entry_data)
     with SessionLocal() as session:
-        entry = Entry(**entry_data)
+        entry = Entry(**data.model_dump())
         session.add(entry)
         try:
             session.commit()
