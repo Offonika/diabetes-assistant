@@ -1,5 +1,6 @@
 import logging
 from config import validate_tokens
+from gpt_command_parser import init_command_parser
 
 
 def setup() -> logging.Logger:
@@ -16,6 +17,7 @@ def setup() -> logging.Logger:
     logger = logging.getLogger("bot")
 
     validate_tokens()
+    init_command_parser()
 
     for name in ("httpcore", "httpx", "telegram", "telegram.ext"):
         logging.getLogger(name).setLevel(logging.WARNING)
