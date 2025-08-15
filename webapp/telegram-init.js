@@ -1,4 +1,4 @@
-const tg = window.Telegram?.WebApp;
+const tg = window.Telegram && window.Telegram.WebApp;
 if (tg) {
   try {
     tg.ready();
@@ -13,6 +13,8 @@ if (tg) {
   } catch (e) {
     console.warn('Telegram WebApp init override failed:', e);
   }
+} else {
+  console.error('Telegram WebApp not found.');
 }
 
 document.body.classList.add('light-theme');
