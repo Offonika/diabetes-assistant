@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from services import find_protocol_by_diagnosis
 
@@ -16,4 +17,8 @@ async def ai_diagnose(req: DiagnoseRequest) -> DiagnoseResponse:
     if protocol is None:
         raise HTTPException(status_code=404, detail="Protocol not found")
     return DiagnoseResponse(protocol=protocol)
+
+
+# Serve the Telegram WebApp static files
+app.mount("/", StaticFiles(directory="webapp", html=True), name="webapp")
 

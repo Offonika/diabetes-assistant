@@ -2,7 +2,9 @@ import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from api import ai_diagnose, DiagnoseRequest, DiagnoseResponse
+from fastapi.testclient import TestClient
+
+from api import ai_diagnose, DiagnoseRequest, DiagnoseResponse, app
 
 @pytest.mark.asyncio
 async def test_ai_diagnose_with_protocol():
@@ -21,4 +23,11 @@ async def test_ai_diagnose_unknown_diagnosis_returns_404():
 def test_diagnose_response_requires_protocol():
     with pytest.raises(ValidationError):
         DiagnoseResponse(protocol=None)
+
+
+def test_webapp_served_index_html():
+    client = TestClient(app)
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Diabetes Assistant WebApp" in response.text
 
