@@ -18,18 +18,16 @@ OPENAI_PROXY = os.getenv('OPENAI_PROXY')
 
 
 def validate_tokens() -> None:
-    """Ensure that all required API tokens are provided."""
+    """Ensure required API tokens are provided.
+
+    Database credentials are optional and fall back to sensible defaults.
+    """
     missing = [
         name
         for name, value in [
             ("TELEGRAM_TOKEN", TELEGRAM_TOKEN),
             ("OPENAI_API_KEY", OPENAI_API_KEY),
             ("OPENAI_ASSISTANT_ID", OPENAI_ASSISTANT_ID),
-            ("DB_HOST", os.getenv("DB_HOST")),
-            ("DB_PORT", os.getenv("DB_PORT")),
-            ("DB_NAME", os.getenv("DB_NAME")),
-            ("DB_USER", os.getenv("DB_USER")),
-            ("DB_PASSWORD", os.getenv("DB_PASSWORD")),
         ]
         if not value
     ]
