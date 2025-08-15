@@ -1,0 +1,21 @@
+{
+  "name": "diabetes-assistant",
+  "version": "1.0.0",
+  "description": "Телеграм-бот для помощи диабетикам 2 типа: - распознаёт еду по фото через GPT-4o - рассчитывает углеводы и ХЕ - (в будущем) подсказывает дозу инсулина - ведёт простой дневник",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "build": "mkdir -p dist && cp -r webapp/* dist/",
+    "build:clean": "rimraf dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "rimraf": "^6.0.1"
+  }
+}

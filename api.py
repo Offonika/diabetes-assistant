@@ -19,6 +19,6 @@ async def ai_diagnose(req: DiagnoseRequest) -> DiagnoseResponse:
     return DiagnoseResponse(protocol=protocol)
 
 
-# Serve the Telegram WebApp static files
-app.mount("/", StaticFiles(directory="webapp", html=True), name="webapp")
+# Serve the Telegram WebApp static files from the built directory
+app.mount("/", StaticFiles(directory="dist", html=True), name="webapp")
 
