@@ -1,9 +1,13 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from services import find_protocol_by_diagnosis
 
 app = FastAPI()
+
+BASE_DIR = Path(__file__).resolve().parent
 
 class DiagnoseRequest(BaseModel):
     diagnosis: str
@@ -19,6 +23,11 @@ async def ai_diagnose(req: DiagnoseRequest) -> DiagnoseResponse:
     return DiagnoseResponse(protocol=protocol)
 
 
-# Serve the Telegram WebApp static files from the built directory
-app.mount("/", StaticFiles(directory="dist", html=True), name="webapp")
+# Serve the Telegram WebApp static files from the built directory when available.
+# Fall back to the source directory in development environments.
+dist_dir = BASE_DIR / "dist"
+if dist_dir.exists():
+    app.mount("/", StaticFiles(directory=dist_dir, html=True), name="webapp")
+else:
+    app.mount("/", StaticFiles(directory=BASE_DIR / "webapp", html=True), name="webapp")
 
