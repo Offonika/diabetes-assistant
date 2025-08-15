@@ -2,16 +2,24 @@ import os, json, logging, asyncio
 from openai import OpenAI
 from config import OPENAI_API_KEY, OPENAI_PROXY, validate_tokens
 
-validate_tokens()
 
-# 1️⃣ СРАЗУ ставим переменные окружения — до создания клиента!
-if OPENAI_PROXY is not None:
-    os.environ["HTTP_PROXY"] = OPENAI_PROXY
-    os.environ["HTTPS_PROXY"] = OPENAI_PROXY
+client: OpenAI | None = None
 
-# 2️⃣ Создаём обычный клиент OpenAI — без extra‑аргументов,
-#    он возьмёт прокси из env автоматически.
-client = OpenAI(api_key=OPENAI_API_KEY)
+
+def init_command_parser() -> None:
+    """Initialize OpenAI client and validate required tokens."""
+    global client
+
+    validate_tokens()
+
+    # 1️⃣ СРАЗУ ставим переменные окружения — до создания клиента!
+    if OPENAI_PROXY is not None:
+        os.environ["HTTP_PROXY"] = OPENAI_PROXY
+        os.environ["HTTPS_PROXY"] = OPENAI_PROXY
+
+    # 2️⃣ Создаём обычный клиент OpenAI — без extra‑аргументов,
+    #    он возьмёт прокси из env автоматически.
+    client = OpenAI(api_key=OPENAI_API_KEY)
 
 # gpt_command_parser.py  ← замените весь блок SYSTEM_PROMPT
 SYSTEM_PROMPT = (
@@ -55,6 +63,9 @@ async def parse_command(text: str) -> dict | None:
     The OpenAI client call is executed in a background thread to avoid
     blocking the event loop.
     """
+    if client is None:
+        raise RuntimeError("gpt_command_parser is not initialized. Call init_command_parser()")
+
     try:
         # Run the blocking client call in a separate thread so the event loop
         # remains responsive.
